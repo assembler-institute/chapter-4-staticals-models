@@ -1,0 +1,361 @@
+---
+title: "ACTIVITY 4"
+output:
+  html_notebook: default
+  pdf_document:
+    latex_engine: xelatex
+  html_document: default
+---
+
+## Section A
+
+Load "iqphys.csv" and do a multiple linear regression:
+
+- Which of the predictors explains some of the variability in intelligence quotient (IQ)?
+- What is the effect of brain size (Brain), after taking into account weight and height?
+- Give a confidence interval for the coefficients
+- What is the IQ confidence interval for the predictor values: brain size = 95, height = 70, weight = 180?
+- Do the residuals follow a normal distribution? Make the histogram and quantile-quantile plot representations convenient.
+
+
+-Load csv: 
+
+```{r}
+
+df <- read.csv('iqphys.csv',sep=',')
+df
+```
+
+**Does IQ depend on physical measurements?**
+
+Data description:
+
+- Response (y)(IQ): Performance IQ (PIQ) scores from the Wechsler Adult Intelligence Scale-Revised. This variable was used by the researcher to measure the intelligence of the individual.
+- Possible predictor (x1)(Brain): The size of the brain based on the estimate obtained from the MRIs (expressed as estimate/10,000).
+- Possible predictor (x2)(Height): Height in inches.
+- Possible predictor (x3)(Weight): Weight in pounds.
+
+We paint the pairs of variables. We did not observe a strong correlation of PIQ with respect to Height or Weight, however, we did observe a certain evolution with respect to Brain.
+
+```{r}
+
+pairs(df)
+
+```
+
+- Do a multiple linear regression:
+
+We train a linear model
+
+```{r}
+
+head(df)
+
+mod <- lm(IQ~Brain+Height+Weight,data=df)
+mod
+summary(mod)
+```
+
+- Which of the predictors explains some of the variability in IQ?
+- What is the effect of brain size, after taking into account weight and height?
+
+
+The linear model confirms what we see on the graph. Only Brain is a significant predictor, the next is Height with little significance. The model has a poor R², which means that the IQ is not well explained by the predictors.
+
+In fact, the standard error in residuals is 19.79 and the typical deviation of the IQ variable is 22.59, which means that there is a very strong variation in the residuals with respect to the objective variable:
+
+```{r}
+
+sd(df$IQ)
+
+```
+
+Only brain size seems to be significantly influential and height slightly, only 29% of the IQ variability remains.
+explained through the predictor variables. (R^2 adjusted)
+
+Based on the adjusted R^2 value, we will study whether introducing polynomial coefficients improves the explanation:
+
+```{r}
+
+summary(lm(IQ~Brain+I(Brain^3)+Height+Weight,data=df))
+
+```
+
+We observe that the adjusted R^2 is worse with the transformation, we are left with the initial linear model.
+
+- Give a confidence interval for the coefficients
+
+We eliminate the weight variable from the explanation, due to its low predictive power (we look at the associated p-value), and we give a confidence interval for the rest of the variables.
+
+```{r}
+
+mod_red <- lm(IQ~Brain+Height,data=df)
+
+summary(mod_red)
+confint(mod_red)
+
+```
+
+- What is the IQ confidence interval for the predictor values: brain size = 95, height = 70, weight = 180?
+
+**We only take into account brain size and height, since we have verified that introducing weight makes the model worse.
+
+If a person enters with a brain size of 95 and a height of 70, his prediction in confidence interval is as follows (note that in this case, the weight of the individual is the same as we do not consider this variable in our model):
+
+```{r}
+
+newdata <- data.frame(Brain=95,Height=70)
+
+
+predict(mod_red, newdata, interval="predict")
+
+```
+
+We note that the size of the confidence interval is very wide. This is because there are few samples and the model does not fit correctly.
+
+- Do the residuals follow a normal distribution? Make the histogram and quantile-quantile plot representations convenient.
+
+We plot the residuals to confirm that the model residuals follow a normal distribution.
+
+```{r}
+
+mod_red$residuals
+
+
+par(mfrow=c(1,2))
+hist(mod_red$residuals)
+qqnorm(mod_red$residuals)
+qqline(mod_red$residuals)
+
+```
+
+We also perform a non-parametric test that measures normality: the Shapito-Wilk test, whose null hypothesis we recall is
+
+H0: The sample comes from a population with a distribution that can be approximated by a normal distribution.
+
+
+```{r}
+
+shapiro.test(mod_red$residuals)
+
+```
+
+Since the p-value is greater than 0.05, the null hypothesis is accepted and we can accept normality in the residuals.
+
+
+We do an ANOVA to decide if the model that considers all the variables (unrestricted) or the reduced one, which has the Brain and Height variables (restricted), is better.
+
+
+```{r}
+
+anova(mod,mod_red)
+
+```
+The p-value is quite high, we are left with the restricted model.
+
+
+## Section B
+
+- Load the `prostate.csv` dataset
+- Remove the train column
+- What is the best model that explains the variable lpsa?
+- Give a confidence interval for the coefficients
+
+
+
+Load the `prostate.csv` dataset
+
+```{r}
+
+prostate <- read.csv('prostate.csv')
+
+head(prostate)
+```
+
+- Remove the train column ,What is the best model that explains the variable lpsa ?
+
+```{r}
+
+prostate$train <- NULL
+head(prostate)
+
+```
+
+To choose the best model we will base ourselves on the AIC criterion. In addition, we will use its implementation with the stepwise algorithm to evaluate those models within the limits that we define.
+
+We will consider the constant model as the lower limit and the model that considers all the variables as the upper limit.
+
+We first execute the method with the "back" direction.
+
+
+
+```{r}
+fit1 <- lm(lpsa~lcavol+lweight+age+lbph+svi+lcp+gleason+pgg45,data=prostate)
+fit0 <- lm(lpsa~1,data=prostate)
+library(MASS)
+stepAIC(fit1,direction="backward")
+```
+
+
+We obtain the model that is linearly based on lcavol, lweight, age, lbph, svi, with AIC=-63.72
+
+Then we execute the method with the direction "forward".
+
+
+
+```{r}
+
+stepAIC(fit0,direction="forward",scope=list(upper=fit1,lower=fit0))
+```
+
+We also obtain the model that is linearly based on lcavol, lweight, age, lbph, svi, with AIC=-63.72
+
+Finally, we execute the method combining both strategies with address = "both"
+
+
+
+```{r}
+
+step <- stepAIC(fit0,direction="both",scope=list(upper=fit1,lower=fit0))
+step$call
+
+```
+
+We also obtain the model that is linearly based on lcavol, lweight, age, lbph, svi, with AIC=-63.72
+
+Based on the results, we choose the model that is linearly based on lcavol, lweight, age, lbph, svi.
+
+The AIC of the selected model is
+
+```{r}
+
+extractAIC(lm(formula = lpsa ~ lcavol + lweight + svi + lbph + age, data = prostate),scale=0)
+
+```
+
+We give the summary and the coefficients of the final model. In addition, we compare the final model using an ANOVA test against the model with the same variables minus the age variable.
+
+```{r}
+
+model_final <- lm(formula = lpsa ~ lcavol + lweight + svi + lbph + age, data = prostate)
+
+summary(model_final)
+
+coefficients(model_final)
+
+anova(lm(formula = lpsa ~ lcavol + lweight + svi + lbph, data = prostate),
+      lm(formula = lpsa ~ lcavol + lweight + svi + lbph + age, data = prostate))
+
+```
+```{r}
+
+extractAIC(lm(formula = lpsa ~ lcavol + lweight + svi + lbph , data = prostate),scale=0)
+
+# the ANOVA test indicates this simplified model as the best, however its AIC is greater than that of the model with the age variable
+
+```
+
+We observe that the ANOVA does not justify the inclusion of the Age variable, however it reduces the AIC and that is why it is chosen as the best using the stepwise methods.
+
+The criteria do not have to be always aligned. That is why the interpretation we make of them is key, as well as the use of several of these criteria.
+
+Finally, we study the residuals of our final model.
+
+We observe how our residuals follow, approximately, a normal distribution.
+
+```{r}
+
+par(mfrow=c(1,2))
+hist(model_final$residuals)
+qqnorm(model_final$residuals)
+qqline(model_final$residuals)
+
+```
+
+
+- Give a confidence interval for the coefficients
+
+We give the confidence intervals of the coefficients:
+
+```{r}
+
+coefficients(model_final) # model coefficients
+
+confint(model_final) # confidence intervals for each coefficient
+
+```
+
+## Section C
+
+Loads the Wisconsin ICU breast cancer dataset ("wisconsin_breast.csv").
+
+Divide it into train - 400 first rows and test - row 401 onwards.
+
+```{r}
+df <- read.csv("wisconsin_breast.csv")
+dim(df)
+head(df)
+str(df)
+```
+
+
+We set the target variable (V2) as well as the train and test sets
+
+```{r}
+df$V2 <- as.numeric(as.factor(df$V2) ) - 1
+df_train <- df[1:400, 1:32]
+df_test <- df[401:569, 1:32]
+
+X_train <- df_train[,4:32]
+y_train <- df_train[,3]
+
+X_test <- df_test[,4:32]
+y_test <- df_test[,3]
+```
+
+Do a logistic regression making model selection according to AIC and giving the confusion table and metrics in the test:
+
+- What variables are most influential in having breast cancer?
+- Select the model using StepAIC and make the prediction on the test set giving the confusion matrix.
+
+Better results are understood in this case as the best **Recall** by not wanting to send sick patients home.
+
+
+Using AIC, we select the best logistic regression model
+
+```{r}
+fit1 <- glm(V2~., data=df_train[3:32], family=binomial)
+fit0 <- glm(V2~1, data=df_train[3:32], family=binomial)
+library(MASS)
+
+#I decide to apply both by stepwise
+
+
+step <-stepAIC(fit0,direction="both",scope=list(upper=fit1,lower=fit0))
+summary(step)
+
+```
+Based on the final model, the most predictive variables are V4 and V30.
+
+We check the error in the test set
+
+
+```{r}
+
+y_pred <- as.numeric(predict(step, X_test, type="response")>.5)
+y_pred <- as.factor(y_pred)
+y_test <- as.factor(y_test)
+
+
+# install.packages(c("e1071", "caret", "e1071")
+library(caret)
+library(ggplot2)
+library(lattice)
+library(e1071)
+confusionMatrix(y_test, y_pred, mode="everything")
+
+
+```
+
+
+

@@ -1,0 +1,1227 @@
+---
+title: "Livecoding chapter 4"
+output:
+  html_notebook: default
+  pdf_document:
+    latex_engine: xelatex
+  html_document: default
+---
+
+In this notebook, the main regressions are implemented, as well as the transformations necessary to obtain the underlying linear relationships.
+
+In addition, it has an exercise in which we will study linear and logarithmic regression to see which one best fits the data.
+
+
+# Simple linear regression
+
+Let's see cases of simple linear regression
+
+We load the data and represent the teaching and age variables
+
+```{r}
+
+a.docencia <- c(3,1,1,2,5,6,12,7,3,10,6,11,4,4,16,4,5,3,5,2)
+edad <- c(35,27,26,30,33,42,51,35,45,37,43,36,36,56,29,35,37,29,34,29)
+plot(edad, a.docencia)
+
+```
+
+## Linear regression
+
+We fit a simple linear regression model of the form
+
+$$Y = aX + b$$
+where **Y=years of teaching** and **X=age**
+
+```{r}
+
+Y <- a.docencia
+X <- edad
+
+lm(Y~X) -> mod_reg
+
+mod_reg # only get the coefficients of the model
+
+summary(mod_reg)
+#we obtain the rest of the parameters to be evaluated from the model (residuals, coefficient with their p-values, adjusted R^2, F, p-value)
+
+```
+The trained model is very deficient because its R² is very low, and none of its coefficients is significantly non-null. (pvalue >0.05 implies rejecting H1:Beta associated with each variable !=0)
+
+We represent graphically:
+
+```{r}
+
+plot(edad,a.docencia)
+abline(mod_reg)
+
+cor(edad,a.docencia)^2
+
+```
+We see the graph and we understand that it is so deficient: the correlation between the variables is very low.(0.05275786)
+
+
+We get the coefficients of the model
+
+```{r}
+
+mod_reg$coefficients
+mod_reg$coefficients[1]
+mod_reg$coefficients[2]
+
+
+```
+It also gives us the values of the residuals or errors:
+
+```{r}
+
+mod_reg$residuals
+
+```
+
+## Linear regression without independent term
+
+A model can be trained without the independent term if we subtract 1 from the formula.
+This makes sense if you want to impose the constraint that when X=0, you have Y=0
+
+$$Y = a X$$
+```{r}
+
+mod_no_intercept <- lm(a.docencia~edad-1)
+
+mod_no_intercept
+summary(mod_no_intercept)
+
+plot(edad,a.docencia)
+abline(mod_no_intercept)
+```
+
+
+
+## Constant Linear Regression
+
+A constant model can also be fitted, in this case it predicts the mean of Y all the time:
+
+$$Y = b$$
+```{r}
+mod_constant <- lm(a.docencia~1)
+mod_constant
+summary(mod_constant)
+sd(a.docencia) #standard deviation of years of teaching
+mean(a.docencia) #average years of teaching
+
+plot(edad,a.docencia)
+abline(mod_constant)
+
+```
+We can use the trained model to make a prediction
+
+```{r}
+
+# take the model from the beginning
+mod_reg
+
+nuevosdatos <- data.frame(X=c(30,40,50))
+# I take some new values of X, age
+
+#Applying the predict.lm function of the result of my model, I introduce the age values so that it gives me the teaching values for these ages
+
+predict.lm(mod_reg, newdata = nuevosdatos)
+
+```
+
+
+
+# Polynomial regression
+
+## Polynomial regression of degree 2
+
+This model is parabolic or degree 2
+$$Y = a X^2 + b X +c $$
+
+```{r}
+
+lm(a.docencia~edad+I(edad^2))->r2
+r2
+summary(r2)
+```
+We paint and predict
+
+
+```{r}
+
+plot(a.docencia~edad)
+lines(sort(edad), fitted(r2)[order(edad)], col='red')  #the red line is the model fit and order age
+
+nuevosdatos <- data.frame(edad=c(30,40,50))
+
+predict.lm(r2,newdata = nuevosdatos)
+
+```
+
+For the three given age values, the predicted teaching values are the previous ones.
+
+## Polynomial regression of degree 3
+
+Polynomial models of degree 3 can also be defined
+$$Y = a X^3 + b X^2 +c X + d $$
+
+```{r}
+lm(a.docencia~edad+I(edad^2)+I(edad^3))->r3
+r3
+summary(r3)
+```
+
+```{r}
+
+
+plot(a.docencia~edad)
+lines(sort(edad), fitted(r3)[order(edad)], col='red') 
+
+predict.lm(r3,newdata = nuevosdatos)
+
+```
+
+As we increase the degree of the polynomial, the curve has more parameters and the ability to fit the point cloud is greater.
+
+
+# potential regression
+
+It is usually used in economic models of elasticity, its formula is
+$$Y = aX^b$$
+To understand why a linear relationship between the logs of both variables is sought, the following mathematical development is carried out:
+
+- Logarithms are taken $log(Y) = log(aX^b)$
+
+- By the properties of logarithms we have that $log(Y) = log(a) + b log(X)$
+
+- From here we deduce the linear dependence between $log(Y)$, $log(X)$, which is what R is asked to calculate
+
+```{r}
+
+lm(log(a.docencia)~log(edad))->rpot
+summary(rpot)
+```
+Note that with R what are calculated are linear relationships, that is why we must now translate the results to the linear scale from which we started.
+For this we will take exponents in the equation.
+
+- We start from the fact that we have obtained $log(Y) = log(a) + b log(X)$
+
+- Taking exponentials, remembering that $e^{(logy)} = y$, we have that $y = e^{log(a) + b log(X)} = e^{log(a)} e^{b log(X)} = a e^{log(X^b)}$
+
+- Thus, finally, we obtain that $y = a x^b$, which was the potential relation from which we started
+
+
+This is why when plotting the results, exponential is taken in fitted(rpot).
+
+
+```{r}
+
+plot(a.docencia~edad)
+lines(sort(edad), exp(fitted(rpot)[order(edad)]), col='red') 
+
+# the exp is taken to translate the model results taken with log(y)
+exp(predict.lm(rpot,newdata = nuevosdatos))
+
+predict.lm(rpot,newdata = nuevosdatos)# mal, le falta la transformación exp sobre los log
+
+
+```
+
+
+
+# Exponential regression
+
+$$Y = e^{aX+b}$$
+In this case, the underlying linear relationship is between $log(Y)$ and $aX + b$ by taking logarithms.
+That is why the exponential is taken on the results of the regression.
+
+
+
+```{r}
+
+lm(log(a.docencia)~edad)->rexp
+
+summary(rexp)
+
+plot(a.docencia~edad)
+lines(sort(edad), exp(fitted(rexp)[order(edad)]), col='red') 
+
+#translate the results to their origin, so we take exp from the result of the model made with log(y)
+exp(predict.lm(rpot,newdata = nuevosdatos))
+
+```
+
+
+
+
+
+# Logarithmic regression
+
+$$Y = a + b \log(x)$$
+The linear relationship is found directly between Y and ln(X).
+Consequently, it is not necessary to transform the results given by the regression.
+
+```{r}
+lm(a.docencia~log(edad))->rlog
+
+summary(rlog)
+
+plot(a.docencia~edad)
+lines(sort(edad), fitted(rlog)[order(edad)], col='red') 
+
+
+predict.lm(rlog,newdata = nuevosdatos)
+```
+
+
+
+# hyperbolic regression
+
+$$Y = a + b/x$$
+The linear relationship is found directly between Y and $X^{-1}$. Consequently, it is not necessary to transform the results given by the regression.
+
+
+
+```{r}
+lm(a.docencia~I(1/edad))->rhiper
+summary(rhiper)
+
+plot(a.docencia~edad)
+lines(sort(edad), fitted(rhiper)[order(edad)], col='red') 
+
+
+predict.lm(rhiper,newdata = nuevosdatos)
+
+```
+
+
+
+
+### Exercise
+
+
+It generates a .csv called actreg.csv and runs and plots the linear and logarithmic regressions.
+Which one fits better? Which one has better fitted R^2?
+
+### SOLUTION:
+
+The data has been created by performing:
+
+```{r}
+
+set.seed(0)
+x <- runif(100,1,50)
+y <- 10+log(3*x)+rnorm(100,sd = 0.4)
+
+dat <- data.frame(x=x,y=y)
+
+write.csv(dat,file = "actreg.csv",row.names=FALSE)
+
+```
+
+
+We start by plotting the data and testing with linear regression
+
+```{r}
+
+ej1 <- read.csv("actreg.csv")
+plot(ej1$y~ej1$x)
+
+mod_lin <- lm(ej1$y~ej1$x)
+mod_lin
+
+summary(mod_lin)
+
+plot(ej1$y~ej1$x)
+lines(sort(ej1$x), fitted(mod_lin)[order(ej1$x)], col='red') 
+
+```
+From the shape of the points, we see that it could be modeled well using logarithmic regression.
+And that has an adjusted R^2 of 0.7072.
+
+Let's test if we can improve this model and fit it better.
+
+
+
+```{r}
+
+plot(ej1$y~ej1$x)
+
+
+mod_log <- lm(ej1$y~log(ej1$x))
+mod_log
+
+summary(mod_log)
+
+plot(ej1$y~ej1$x)
+lines(sort(ej1$x), fitted(mod_log)[order(ej1$x)], col='red') 
+
+```
+
+
+Indeed, we are right with the logarithmic regression y.
+Visually we see that it fits the data better, its adjusted R^2, 0.7911, is higher.
+
+
+
+## Multiple Linear Regression
+
+We take a dataset of savings rates in countries
+
+```{r}
+
+# install.packages("faraway")
+
+library(faraway)
+
+data(savings)
+
+help(savings)
+
+head(savings)
+
+```
+
+
+We create a model of the saving rate on the variables
+
+- % population under 15 years (pop15)
+- % population older than 75 years (pop75)
+- disposable income per capita in dollars (dpi)
+
+
+
+
+```{r}
+
+savings.lm <- lm(sr ~ pop15 + pop75 + dpi, savings)
+
+savings.lm
+
+summary(savings.lm)
+
+```
+
+It is observed that the significant variables are marked with stars and have a low t-student contrast p-value.
+We also observe that the p-value associated with the contrast test F is less than 0.05, so our model is better than a constant regressor model.
+
+
+Now we create a model with all the variables.
+
+
+```{r}
+
+savings.lm2 <- lm(sr ~., savings)
+savings.lm2
+summary(savings.lm2)
+
+```
+As before, we see that the variables with a lower p-value are marked with a star. We also observe that the p-value associated with the contrast test F is less than 0.05, so our model is better than a constant regressor model.
+
+Finally we look at its adjusted R^2, which is higher than that of the previous model. This is an indication that this model may be better than the previous one.
+
+
+
+Based on their corresponding p-values, only pop15 and ddpi seem to be significantly explanatory variables, as well as the intercept term.
+Let's see the values of the coefficients associated with the variables and the independent term (intercept):
+
+```{r}
+
+coefficients(savings.lm2)
+
+```
+When we are faced with a model that uses multiple variables, we ask ourselves if part of them can be dispensed with, selecting only the relevant predictors.
+
+Can a set of variables be dispensed with, in this case pop75 and dpi?
+
+We create two nested models, i.e. that the variables of one are contained in those of the other, and we perform an ANOVA based on an F test between them that tells us whether including the pop75 and dpi variables generates a better model or not.
+
+In this case, the restricted model is the one that only considers [pop15, ddpi] and the unrestricted model is the one that considers [pop15, ddpi] and also [pop75, dpi]
+
+```{r}
+savings.lm.1 <- lm(sr ~ pop15 + pop75 + dpi + ddpi, savings)
+savings.lm.2 <- lm(sr ~ pop15 + ddpi, savings)
+
+summary(savings.lm.1)
+summary(savings.lm.2)
+```
+
+
+
+The anova performs the test that has as a null hypothesis to consider the restricted model and as an alternative hypothesis to consider the unrestricted model:
+
+- H0: beta_pop75 = beta_dpi = 0
+- H1: beta_pop75 != 0 ó beta_dpi != 0
+
+This is equivalent to considering as an alternative hypothesis that one of the coefficients is not null.
+
+```{r}
+
+anova(savings.lm.1,savings.lm.2)
+
+```
+
+
+The p-value is 0.19 ( >0.05), therefore we would use the restricted (i.e. simplified) model.
+Note also that the ANOVA returns Df = -2, which indicates that the second model has, as we already knew, two fewer variables.
+
+Once we have determined the choice of the simplified model, we proceed to analyze its residuals using a histogram and a QQ plot with a normal distribution as a reference.
+This study is fundamental since it will indicate the possible existence of biases in our model.
+In addition, it is key to highlight that the coefficients such as adjusted R^2 do not manage to capture deviations in the residuals, so they must always be complemented with this type of analysis.
+
+
+We start by making a histogram of the residuals together with a density curve that approximates it.
+
+We observe that the residuals do follow a normal distribution centered at 0.
+
+```{r}
+# Residue analysis
+library(ggplot2)
+
+residuos <- as.data.frame(savings.lm.2$residuals, )
+
+# Histogram of residuals with density curve
+ggplot(residuos, aes(x=savings.lm.2$residuals)) + 
+    geom_histogram(aes(y=..density..),      
+                   binwidth=2,
+                   colour="black", fill="blue") +
+    geom_density(alpha=.2, fill="red")  #fill density curve in soft red
+```
+
+We observe that the residuals do follow a normal distribution centered at 0.
+
+We finish the study with a QQ plot contrasting the sample distribution of residuals against a normal distribution.
+
+
+```{r}
+
+# QQ plot: contrasting the sample distribution of the residuals with a normal distribution
+qqnorm(savings.lm.2$residuals)
+qqline(savings.lm.2$residuals)
+
+```
+We note that most of the points lie on the line, indicating that the sample distribution of the residuals can be approximated by a normal one.
+
+## Full multiple regression analysis example
+
+The database contains information on newborns and their mothers with a total of 1236 observations.
+Determine for each of the predictors if we can consider that the corresponding coefficient is null.
+
+Let's load it up and do preprocessing and a multiple linear model
+
+```{r}
+
+# install.packages("UsingR")
+
+library("UsingR")
+
+
+data("babies")
+
+attach(babies) #to access the DB only by giving the names of the variables
+
+apply(is.na(babies),2,sum) # we see that this dataset has no missing values to use, in the following cells we will see that it has reserved values for missing values
+
+str(babies)
+
+```
+We see the table
+```{r}
+
+help(babies)
+
+head(babies,30)
+
+```
+
+
+As we anticipated earlier, this dataset did not have missing values to use but rather had reserved values that represented them.
+
+We declare the missing data as follows:
+
+```{r}
+
+babies$wt[wt == 999]
+babies$sex[sex == 9] <- NA
+babies$wt[wt == 999] <- NA
+babies$parity[parity == 99] <- NA
+babies$race[race == 99] <- NA
+babies$age[age == 99] <- NA
+babies$ed[ed == 9] <- NA
+babies$ht[ht == 99] <- NA
+babies$wt1[wt1 == 999] <- NA
+babies$smoke[smoke == 9] <- NA
+babies$time[time == 99] <- NA
+babies$time[time == 98] <- NA
+number[number == 98 | number == 99] <- NA
+
+#this tells us how many missing values there are per column as a percentage
+
+apply(is.na(babies),2,sum) / nrow(babies)*100
+
+
+```
+
+
+
+
+We observe the compositions of the columns
+
+```{r}
+
+str(babies)
+unique(outcome)
+unique(sex)
+unique(pluralty)
+
+```
+We remove constant columns as they are useless as predictors
+
+```{r}
+
+babies[, c("id","outcome","sex","pluralty")] <- NULL
+
+```
+
+
+We edit as factors columns that are categorical
+
+```{r}
+
+fact.cols <- c("race","ed","drace","dage","ded","marital","smoke","time","number")
+
+babies[fact.cols] <- lapply(babies[fact.cols], factor)
+str(babies)
+
+```
+
+We check the data
+
+```{r}
+
+apply(is.na(babies),2,sum)
+
+unique(babies$pluralty) # returns NULL since it is one of the constant variables we have removed
+
+```
+
+Before fitting a linear model we do imputation of missing values using the package missForest explained in
+
+https://stat.ethz.ch/education/semesters/ss2012/ams/paper/missForest_1.2.pdf
+
+The imputation of values to missing values is a very relevant field in the world of data science.
+In this case, a method based on the Random Forest algorithm of Machine Learning is used.
+
+
+```{r}
+
+install.packages("missForest")
+install.packages("randomForest")
+
+library(missForest)
+library(randomForest)
+
+#we impute values
+
+help(missForest)
+
+babies.imp <- missForest(babies,maxiter = 20,ntree = 500,variablewise = T)
+#maxiter - nºmax iteractions
+#ntree - nº tree
+
+
+babies.imp$OOBerror # errors associated with each variable (MSE for continuous (mean square error) and PFC (proportion of misclassification) categorical)
+
+#calculation of variances removing na
+apply(babies,2,var,na.rm=TRUE)
+
+apply(is.na(babies.imp$ximp),2,sum) #It tells me the number of na in the imputed database, we check that we have done it correctly.
+
+
+```
+
+
+We replace the value of babies by the imputed table
+
+
+```{r}
+
+babies <- babies.imp$ximp
+
+```
+
+
+
+We observe the correlations of the variables wt, age and ht
+
+```{r}
+
+cor(babies$age,babies$wt)
+cor(babies$ht,babies$wt)
+
+```
+
+
+Suppose we intend to predict the weight of the child using as predictor variables the variables gestation, ht, age, wt1 that correspond to the time of gestation, the height of the mother, the age of the mother, the weight of the mother before birth.
+
+a) Make the corresponding adjustment.
+b) Evaluate the coefficient of determination.
+c) Determine for each of the predictors if we can consider that the corresponding coefficient is null.
+d) Test the hypothesis that all the coefficients except the constant are null.
+
+
+We make the adjustment taking into account the variables gestation, ht, age, wt1.
+
+```{r}
+mod <- lm(wt~ht+gestation+age+wt1,data=babies)
+
+summary(mod)
+```
+
+Thanks to its p-values, we detect that the variable ht is the one with the greatest predictive power, followed by wt1 and the intercept.
+On the other hand, the coefficients of the gestation and age variables can be considered null since their corresponding p-value is > 0.05.
+
+Also, we note that the p-value of the contrast F is less than 0.05, so our model is better than a constant regressor model. (all coefficients to zero and Y=b)
+
+d) Test the hypothesis that all the coefficients except the constant are null.
+
+
+
+```{r}
+#we cannot consider that all the coefficients are null except the constant
+
+anova(lm(wt~1,data=babies),mod)
+
+```
+
+If we carry out an ANOVA contrast based on an F test between the constant regressor model (Y=b) and ours, we observe that the p-value is less than 0.05, so we accept the hypothesis H1 that some of the coefficients must be not null
+
+Based on our first analysis, we considered that only the variables ht, wt1 and the intercept proved to be significantly predictive. That is why we will carry out an ANOVA test between the initial model with all the variables and a model with only these three variables.
+
+
+First of all, we look at the characteristics of this model with the variables ht, wt1 and the intercept.
+
+
+
+```{r}
+mod_final <- lm(wt~ht+wt1,data=babies)
+summary(mod_final)
+```
+As expected, the p-values of the two variables and the intercept are less than 0.05, indicating that the variables are significantly predictive. Similarly, the p-value associated with the contrast F is also less than 0.05, showing that this model is better than the constant regressor model.
+
+Finally, we perform the ANOVA test between both models.
+
+Recall that his hypotheses are:
+
+- H0: beta_gestation = beta_age = 0
+- H1: beta_gestation != 0 ó beta_age != 0
+
+
+
+```{r}
+
+anova(mod_final,mod)
+
+```
+Since the p-value is > 0.05, the null hypothesis is accepted, so we are left with the reduced model of two variables and the intercept.
+
+
+
+
+Finally, we perform a residual analysis of this final model.
+
+
+Once we have determined the choice of the simplified model, we proceed to analyze its residuals using a histogram and a QQ plot with a normal distribution as a reference.
+
+We start by making a histogram of the residuals together with a density curve that approximates it.
+
+
+
+
+```{r}
+# Residue analysis
+library(ggplot2)
+
+residuos_ej2 <- as.data.frame(mod_final$residuals )
+
+# Histogram of residuals with density curve
+ggplot(residuos_ej2, aes(x=mod_final$residuals)) + 
+    geom_histogram(aes(y=..density..),      
+                   binwidth=2,
+                   colour="black", fill="blue") +
+    geom_density(alpha=.2, fill="red")  #fill density curve in soft red
+```
+We observe that the residuals (real value-predicted value) do follow a normal distribution centered on 0, although it is true that they have a notable peak in the overestimates (a negative error).
+
+We finish the study with a QQ plot contrasting the sample distribution of residuals against a normal distribution.
+
+
+
+```{r}
+
+# QQ plot: contrasting the sample distribution of the residuals with a normal distribution
+qqnorm(mod_final$residuals)
+qqline(mod_final$residuals)
+
+```
+We note that most of the points lie on the line, indicating that the sample distribution of the residuals can be approximated by a normal one. However, this peak of overestimations (negative errors) is detected in the QQ plot by seeing how the smallest quantiles deviate from the line.
+
+
+# Model Selection
+
+The AIC and BIC criteria for model selection are implemented in this notebook.
+
+First, a set of data is studied and, based on this study, a series of models are proposed that are individually evaluated using the AIC and BIC criteria.
+
+Then, the selection of models is automated using a stepwise method based on the AIC criterion and implementing it in the various ways introduced.
+The importance of always studying the normality of the waste generated by the model to see its adequacy is highlighted in this notebook.
+
+## AIC and BIC of models
+
+We see the AIC and BIC model comparison criteria.
+
+First we load the data from the Boston database with 506 records and 14 variables and it contains the information on home values ​​in the suburbs of Boston:
+
+```{r}
+
+library(MASS)
+data(Boston)
+head(Boston)
+
+# we observe the standard deviation of the variable medv=mean value, in thousands, of occupied dwellings
+sd(Boston$medv)
+
+hist(Boston$medv,20)
+
+```
+
+There is an anomaly in the data at the value 50, we remove these houses and run a model on all variables.
+
+With `confint` we get confidence intervals for the coefficients of the model
+
+
+```{r}
+
+Boston2 <- Boston[Boston$medv<50,]
+
+hist(Boston2$medv,20) 
+
+View(Boston2)
+
+max(Boston2$medv)# the maximum value of medv is now 48.8
+
+#Construct a model Y=medv and the rest of the variables of the DB as v.regressors
+
+mod <- lm(medv~.,data=Boston2)
+
+summary(mod)
+
+#We extract the CI from the estimated values of the coefficients associated with each variable of the model
+confint(mod)
+
+#mod_red <- lm(medv~.-chas-indus,data=Boston2)
+
+#summary(mod_red)
+
+```
+
+
+We calculate the correlation matrix and the correlation row with respect to the target variable "medv"
+
+```{r}
+
+ncol(Boston2) # we see that there are 14 independent variables (possible variables for the models)
+
+M <- cor(Boston2)
+
+M
+M[14,]
+
+
+```
+
+Based on this study, we compared the model that considers all the variables and another model that considers all the variables except two of the least predictive ones (based on their p-value).
+
+We use AIC to compare both models.
+
+(The one with the lowest AIC must be selected)
+
+```{r}
+
+AIC(lm(medv~.,data=Boston2))
+
+AIC(lm(medv~.-chas-indus,data=Boston2))
+```
+
+The model that does not have the variables chas and indus with AIC of 2701.142 (vs all variables with an AIC value of 2704.033) is slightly better.
+
+Now we check with BIC.
+
+However, the criteria do not have to coincide.
+
+
+```{r}
+
+BIC(lm(medv~.,data=Boston2))
+BIC(lm(medv~.-chas-indus,data=Boston2))
+
+```
+This dictates that the best model is the one that does not have the variables "chas" and "indus", however the AIC and BIC criteria do not have to coincide.
+
+
+## Automation of variable selection using stepwise methods
+
+In order to automate the selection of models based on these last two criteria, AIC and BIC, there is an implementation based on a stepwise search that automatically compares a finite number of models and chooses the one that yields the best criteria.
+
+This implementation is achieved with the `step` functions.
+
+As mentioned in the topic, a stepwise method is one that includes or excludes variables from the models sequentially.
+
+A stepwise method needs:
+- an initial model from which to start the algorithm
+- a limit that delimits the possible set of models to contemplate
+- an address that marks how the algorithm progresses.
+
+### Implementation forward
+
+If the direction is "forward", the initial model will be taken and variables will be added, of those contemplated, until the criterion (in this case AIC) marks the end of the algorithm.
+
+```{r}
+
+colnames(Boston)
+attach(Boston)
+library(MASS)
+
+str(Boston)
+
+step <- stepAIC(lm(medv~1,data=Boston2), # initial model Y=b
+                scope = medv~crim+zn+indus+chas+nox+rm+age+dis+rad+tax+ptratio+black+lstat, # as only one model is passed, this is the upper limit to consider, leaving the constant model as the smallest model
+                direction="forward")
+
+step
+summary(step)
+
+M <- cor(Boston2)
+M[14,]
+```
+
+indus,chas are the variables you have removed.
+The first variable that enters the model is the one that has the highest correlation (positive or negative) with the dependent variable.
+In our case, the first variable entered was lstat because it has a correlation value with the medv variable of -0.76.
+
+```{r}
+
+step$anova
+
+# results
+# he has been introducing the variables of the model one by one and how he was getting an AIC every time he added a new variable
+
+step$call #es el mejor modelo resultante
+
+AIC(step) # valor AIC del modelo final
+step
+```
+
+#### Forward implementation setting lower and upper limits to consider
+
+Another way to write it is by explicitly stating the major and minor model.
+
+```{r}
+fit1 <- lm(medv~crim+zn+indus+chas+nox+rm+age+dis+rad+tax+ptratio+black+lstat,data=Boston2)
+fit0 <- lm(medv~1,data=Boston2)
+
+step2 <- stepAIC(fit0,direction="forward",scope=list(upper=fit1,lower=fit0))
+summary(step2)
+AIC(step2)
+
+#same result as step
+
+```
+
+
+### Implementation backwards
+
+If the direction is "backward" the initial model will be taken with all the variables and variables will be discarded, of those existing in the initial model, until the criterion marks the end of the algorithm.
+
+In each stage, the least influential variable is eliminated according to the individual contrast (of the t).
+The variable chas appears first because it has a p-value in the model of 0.54, that is, it is the least significant, the next will be indus because it is the next least significant. (see summary(fit1))
+
+```{r}
+
+summary(fit1)
+
+step3 <-stepAIC(fit1,direction="backward")
+
+summary(step3)
+
+AIC(step3)
+
+```
+
+### Implementation contemplating both strategies
+
+If the address is "both" both methods will be taken into account.
+The initial model will be taken and variables will be added, from those contemplated, or variables will be discarded, from those existing in the initial model, until the criterion marks the end of the algorithm.
+
+```{r}
+
+#fit0 contains Y=B
+
+step4 <- stepAIC(fit0,direction="both",scope=list(upper=fit1,lower=fit0))
+
+AIC(step4)
+
+summary(step4)
+```
+
+### Conclusions
+
+The three previous results give the same as the best model.
+
+We check the fit of this model by painting its residuals and verifying that they are normal by looking at its AIC.
+In this case, the residuals have a strong bias to the right, which indicates that the model is not being very adequate.
+
+
+
+```{r}
+
+
+
+mod <- lm(medv ~lstat + rm + ptratio + tax + black + rad +  dis + nox + crim + zn + age,data= Boston2)
+
+#extractAIC(mod,scale=0) # edf y AIC
+
+AIC(mod)
+
+coefficients(mod)
+
+hist(mod$residuals)
+
+qqnorm(mod$residuals)
+qqline(mod$residuals)
+
+
+shapiro.test(mod$residuals) #there is a strong skew to the right and the distribution is not normal
+
+# H0: the sample follows a normal distribution
+#p-value <0.05 -> we reject H0, there is no normalit
+summary(mod)
+
+```
+
+
+# Logistic regression
+
+Let's see how logistic regression models are fit and how the outputs are interpreted.
+
+We loaded data on cardiovascular disease in South Africa. The column "chd" indicates if the person suffers from cardiovascular disease with a 1 and with a 0 if they do not.
+
+```{r}
+
+SAheart <- read.csv("SAheart.csv")
+
+head(SAheart)
+#the categorical variable to relate is chd
+str(SAheart)
+
+unique(SAheart$famhist) # el historial en la familia es binario "Present" o "Absent"
+
+
+```
+The function that performs the logistic regression is `glm` taking the binomial as the family.
+Although this question will be presented later, it is anticipated that logistic regression is a type of *generalized linear model*, more specifically of the binomial family.
+
+
+
+## Univariate logistic regression
+
+
+We now create a logistic regression model with the aim of predicting the probability of suffering from a cardiovascular disease (variable "chd") on the variable "tobacco".
+
+```{r}
+
+help("glm")
+
+mod <- glm(chd~tobacco, data=SAheart, family=binomial)
+
+mod$coefficients
+
+summary(mod)
+```
+We plotted the variable "chd" versus "tobacco" to look at the propensity to be ill with respect to tobacco use. We represent the resulting sigmoid with respect to the variable "tobacco"
+
+
+```{r}
+
+plot(chd ~ tobacco, data=SAheart)
+lines(sort(SAheart$tobacco), mod$fitted[order(SAheart$tobacco)], type="o", col="red")
+
+```
+It is observed that although a greater amount of tobacco affects a greater probability of having chd, the classes are not really well separated by the variable "tobacco"
+
+
+## Multivariate logistic regression
+
+As in linear regression, logistic regressions can be performed based on multiple predictor variables.
+
+In this case, we create a logistic model on all variables.
+
+```{r}
+
+mod <- glm(chd~., data=SAheart, family=binomial)
+
+```
+
+Let us recall the interpretation of the coefficients and their impact on the odds ratio of the event.
+
+The impact that a coefficient $\beta_{i}$ has on the odds ratio is that, for each unit that the corresponding predictor variable increases, the odds ratio will be multiplied by ${e}^{\beta_i}$.
+
+That is why:
+
+- if the coefficient is positive, then $e^{\beta_i}>1$, so the odds ratio will increase as the corresponding predictor variable increases
+
+- if the coefficient is negative, then $e^{\beta_i}<1$, so the odds ratio will decrease as the corresponding predictor variable increases
+
+- if the coefficient is 0, then $e^{\beta_i}=1$, so the odds ratio will not be affected by the value of the corresponding predictor variable
+
+
+```{r}
+# See the coefficients of the predictor variables
+mod$coefficients
+
+# We see the exponentials of the coefficients, necessary for the interpretation with the odds ratio
+exp(mod$coefficients)
+
+```
+
+
+Looking at the coefficients, we see, for example, the variable famhistPresent, that if there have been cases of disease in the history of the family, the probability of suffering from the disease is greater. More specifically, if there is a case in the family history, the odds ratio of suffering from a disease is multiplied by 2.52.
+
+
+Next, we see the summary of the execution of the model
+
+```{r}
+summary(mod)
+```
+
+Thanks to a Z-test, similar to the t-test that we performed in the linear regressions, we observed the p-values corresponding to each variable and the most relevant variables are "famhistPresent", "tobacco", "ldl", "typea" and "age".
+
+
+We now visualize the predictions that the model throws on the first records.
+
+What we are looking at are the predicted probabilities that the record will have a disease.
+
+```{r}
+
+#compute predictions over all instances
+
+y_pred <- predict(mod, subset(SAheart,select = -chd ), type="response")
+
+head(y_pred) # we look at the predicted probabilities of having a disease for the first 6 records
+
+```
+
+
+
+### Search for the best model using the stepAIC algorithm
+
+We will now search for the best of the logistic models using the AIC metric and its implementation with a stepwise method that combines the forward and backward techniques.
+
+We first define the limit models for the stepwise method and execute it.
+
+```{r}
+fit1 <- glm(chd~., data=SAheart, family=binomial)
+fit0 <- glm(chd~1, data=SAheart, family=binomial)
+library(MASS)
+step <-stepAIC(fit0,direction="both",scope=list(upper=fit1,lower=fit0))
+```
+
+We can observe that the best model according to the AIC criterion is the logistic model that considers the predictor variables [age, famhist, tobacco, typea, ldl].
+
+
+Before defining a threshold and performing classifications with the logistic model, we will calculate its ROC curve and AUC metric, calculating the corresponding true and true negative rates for all possible thresholds that are significant.
+
+
+```{r}
+
+library(pROC)
+
+par(pty = "s") # so that the graph is square
+roc(SAheart$chd,step$fitted.values, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="Tasa de Falsos Positivos", ylab="Tasa de Verdaderos Positivos", col="#377eb8", lwd=4, print.auc = TRUE, print.auc.x=40,print.auc.y=30 )
+
+```
+
+
+
+
+We now turn to predict on the data set. In this case, we define the threshold at 0.5, in this way, if the predicted probability is greater than 0.5, we will assign class 1 and, otherwise, class 0.
+
+On the other hand, we will consider the real values of the variable "chd" of the dataset.
+
+
+```{r}
+
+y_pred <- as.numeric(predict(step, subset(SAheart,select = -chd ), type="response")>.5)
+y_pred <- as.factor(y_pred)
+
+y <- as.numeric(SAheart$chd)
+y <- as.factor(y)
+
+
+head(y_pred) # look at the first 5 predicted classes
+head(y) # look at the first 5 real classes
+
+```
+
+Finally, we will calculate the evaluation metrics seen in the agenda such as the confusion matrix, accuracy, precision, recall and F1-score.
+
+
+To get all the common evaluation metrics, the `mode="everything"` option must be included. In addition, a confidence interval is obtained for the accuracy.
+
+```{r}
+library(caret)
+library(ggplot2)
+library(lattice)
+library(e1071)
+
+confusionMatrix(y, y_pred, mode="everything")
+
+```
+
+We observe how the factors influence the disease through the coefficients and their exponentials.
+
+```{r}
+
+step$coefficients
+exp(step$coefficients)
+
+```
+
+It is highlighted that confidence intervals can be obtained for the coefficients and, consequently, for their exponentials, which are the ones that help us to understand the impact of the variables on the odds ratio.
+
+```{r}
+
+exp(confint(mod))
+
+```
+
+*Interpretive conclusions as a result of the coefficients*:
+
+- Increasing tobacco by one unit increases the odds ratio of suffering from a disease by 8%.
+(exp value of the coefficient associated with the tobacco variable 1.08)
+
+odds ratio(Y)= 1.08*tobacco
+
+- The factor that most influences is the family presence of the condition "famhistPresent". It makes the odds ratio of having it 2.47 times that of a person with no family history.
+
+- For each year that passes, the odds ratio of suffering from chd increases by 5% (value of the exp coefficient associated with age 1.05)
+
+
+
+
+
+
+
+
+
