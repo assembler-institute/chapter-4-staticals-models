@@ -1,0 +1,61 @@
+---
+title: "ACTIVITY 4"
+output:
+  html_notebook: default
+  pdf_document:
+    latex_engine: xelatex
+  html_document: default
+---
+
+## Section A
+
+Load "iqphys.csv" and do a multiple linear regression:
+
+- Which of the predictors explains some of the variability in intelligence quotient (IQ)?
+- What is the effect of brain size (Brain), after taking into account weight and height?
+- Give a confidence interval for the coefficients
+- What is the IQ confidence interval for the predictor values: brain size = 95, height = 70, weight = 180?
+- Do the residuals follow a normal distribution? Make the histogram and quantile-quantile plot representations convenient.
+
+## Section B
+
+Load the `prostate.csv` dataset
+- Remove the train column
+- What is the best model that explains the variable lpsa?
+- Give a confidence interval for the coefficients
+
+
+## Section C
+
+Loads the Wisconsin ICU breast cancer dataset ("wisconsin_breast.csv").
+
+Divide it into train - 400 first rows and test - row 401 onwards.
+
+```{r}
+df <- read.csv("wisconsin_breast.csv")
+dim(df)
+head(df)
+str(df)
+```
+
+
+We set the target variable (V2) as well as the train and test sets
+
+```{r}
+df$V2 <- as.numeric(as.factor(df$V2) ) - 1
+df_train <- df[1:400, 1:32]
+df_test <- df[401:569, 1:32]
+
+X_train <- df_train[,4:32]
+y_train <- df_train[,3]
+
+X_test <- df_test[,4:32]
+y_test <- df_test[,3]
+```
+
+Do a logistic regression making model selection according to AIC and giving the confusion table and metrics in the test:
+
+- What variables are most influential in having breast cancer?
+- Select the model using StepAIC and make the prediction on the test set giving the confusion matrix.
+
+Better results are understood in this case as the best **Recall** by not wanting to send sick patients home.
